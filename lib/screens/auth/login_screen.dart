@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/routes/app_routes.dart';
-import '../../services/auth_service.dart';
 import '../../models/usuario.dart';
+import '../../services/auth_service.dart';
+import '../../services/session_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,7 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usuarioCtrl = TextEditingController();
   final TextEditingController _passwordCtrl = TextEditingController();
 
-  String _rolSeleccionado = 'Administrador';
   bool _ocultarPassword = true;
   bool _cargando = false;
 
@@ -32,31 +32,36 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _cargando = true);
 
-    final Usuario? usuario = await AuthService.iniciarSesion(
-      usuario: _usuarioCtrl.text.trim(),
-      password: _passwordCtrl.text.trim(),
-      rolSeleccionado: _rolSeleccionado,
-    );
+    try {
+      final Usuario usuario = await AuthService.iniciarSesion(
+        usuario: _usuarioCtrl.text.trim(),
+        password: _passwordCtrl.text.trim(),
+      );
 
-    if (!mounted) return;
+      await SessionService.guardarSesion(usuario);
 
-    setState(() => _cargando = false);
+      if (!mounted) return;
 
-    if (usuario == null) {
+      setState(() => _cargando = false);
+
+      if (usuario.rol == 'admin') {
+        Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
+      } else if (usuario.rol == 'vendedor') {
+        Navigator.pushReplacementNamed(context, AppRoutes.vendedorDashboard);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.clienteHome);
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() => _cargando = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se pudo iniciar sesión'),
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
         ),
       );
-      return;
-    }
-
-    if (usuario.rol == 'admin') {
-      Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
-    } else if (usuario.rol == 'vendedor') {
-      Navigator.pushReplacementNamed(context, AppRoutes.vendedorDashboard);
-    } else {
-      Navigator.pushReplacementNamed(context, AppRoutes.clienteHome);
     }
   }
 
@@ -96,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Inicia sesión según tu rol',
+                        'Inicia sesión con tu cuenta',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.black54),
                       ),
@@ -112,9 +117,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Ingresa tu usuario';
-                          }
-                          if (value.trim().length < 3) {
-                            return 'Mínimo 3 caracteres';
                           }
                           return null;
                         },
@@ -145,41 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (value == null || value.isEmpty) {
                             return 'Ingresa tu contraseña';
                           }
-                          if (value.length < 4) {
-                            return 'Mínimo 4 caracteres';
-                          }
                           return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      DropdownButtonFormField<String>(
-                        value: _rolSeleccionado,
-                        decoration: const InputDecoration(
-                          labelText: 'Rol',
-                          prefixIcon: Icon(Icons.badge_outlined),
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'Administrador',
-                            child: Text('Administrador'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Vendedor',
-                            child: Text('Vendedor'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Cliente',
-                            child: Text('Cliente'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _rolSeleccionado = value;
-                            });
-                          }
                         },
                       ),
                       const SizedBox(height: 24),
@@ -208,15 +176,27 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
 
-                      const Text(
-                        'Por ahora el login es simulado.\nLuego lo conectamos al backend.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.black54,
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Usuarios de prueba:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('admin / admin123'),
+                      ),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('vendedor / vendedor123'),
+                      ),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('cliente / cliente123'),
                       ),
                     ],
                   ),

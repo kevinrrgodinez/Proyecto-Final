@@ -1,24 +1,38 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../core/constants/api_constants.dart';
 import '../models/usuario.dart';
 
 class AuthService {
-  static Future<Usuario?> iniciarSesion({
+  static Future<Usuario> iniciarSesion({
     required String usuario,
     required String password,
-    required String rolSeleccionado,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 700));
+    final response = await http.post(
+      Uri.parse(ApiConstants.login),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'usuario': usuario,
+        'password': password,
+      }),
+    );
 
-    if (usuario.trim().isEmpty || password.trim().isEmpty) {
-      return null;
-    }
-
-    // Simulación temporal por rol
-    if (rolSeleccionado == 'Administrador') {
-      return Usuario(usuario: usuario, rol: 'admin');
-    } else if (rolSeleccionado == 'Vendedor') {
-      return Usuario(usuario: usuario, rol: 'vendedor');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return Usuario.fromLoginResponse(data);
     } else {
-      return Usuario(usuario: usuario, rol: 'cliente');
+      String mensaje = 'No se pudo iniciar sesión';
+
+      try {
+        final data = jsonDecode(response.body);
+        if (data['detail'] != null) {
+          mensaje = data['detail'];
+        }
+      } catch (_) {}
+
+      throw Exception(mensaje);
     }
   }
 }
