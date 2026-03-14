@@ -1,15 +1,28 @@
-const bcrypt = require("bcryptjs");
-
 const usuarios = [
   {
     id: 1,
-    nombre: "Admin",
-    correo: "admin@test.com",
-    password: bcrypt.hashSync("123456", 10),
-    rol: "ADMIN",
+    nombre: 'María González',
+    usuario: 'admin',
+    password: 'admin123',
+    rol: 'admin',
     activo: true,
-    fecha_creacion: new Date()
-  }
+  },
+  {
+    id: 2,
+    nombre: 'Luis Hernández',
+    usuario: 'vendedor',
+    password: 'vendedor123',
+    rol: 'vendedor',
+    activo: true,
+  },
+  {
+    id: 3,
+    nombre: 'Ana López',
+    usuario: 'cliente',
+    password: 'cliente123',
+    rol: 'cliente',
+    activo: true,
+  },
 ];
 
 module.exports = usuarios;

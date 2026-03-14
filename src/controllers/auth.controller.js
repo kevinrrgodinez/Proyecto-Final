@@ -1,54 +1,63 @@
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
+const jwt = require('jsonwebtoken');
+const usuarios = require('../data/usuarios.mock');
 
-let usuarios = [
-  {
-    id: 1,
-    nombre: "Admin",
-    correo: "admin@test.com",
-    password: "$2b$10$Z7T1NFTVCw4GboNTKGrCL.4NTFwJVqAVCq1gT5KZnB.FI392mXrU2",
-    rol: "ADMIN"
-  }
-];
+function generarToken(usuario) {
+  return jwt.sign(
+    {
+      id: usuario.id,
+      usuario: usuario.usuario,
+      rol: usuario.rol,
+      nombre: usuario.nombre,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '8h' }
+  );
+}
 
-exports.login = async (req, res) => {
-  try {
-    const { correo, password } = req.body;
+function login(req, res) {
+  const { usuario, password } = req.body;
 
-    // buscar usuario
-    const user = usuarios.find(u => u.correo === correo);
-
-    if (!user) {
-      return res.status(401).json({ msg: "Credenciales inválidas" });
-    }
-
-    // validar password
-    const passwordValido = await bcrypt.compare(password, user.password);
-
-    if (!passwordValido) {
-      return res.status(401).json({ msg: "Credenciales inválidas" });
-    }
-
-    // generar token
-    const token = jwt.sign(
-      {
-        id: user.id,
-        rol: user.rol
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "8h" }
-    );
-
-    res.json({
-      token,
-      usuario: {
-        id: user.id,
-        nombre: user.nombre,
-        rol: user.rol
-      }
+  if (!usuario || !password) {
+    return res.status(400).json({
+      detail: 'Usuario y contraseña son obligatorios',
     });
-
-  } catch (error) {
-    res.status(500).json({ msg: "Error en login" });
   }
+
+  const usuarioEncontrado = usuarios.find(
+    (u) => u.usuario === usuario && u.password === password && u.activo
+  );
+
+  if (!usuarioEncontrado) {
+    return res.status(401).json({
+      detail: 'Credenciales inválidas',
+    });
+  }
+
+  const token = generarToken(usuarioEncontrado);
+
+  return res.json({
+    token,
+    user: {
+      id: usuarioEncontrado.id,
+      nombre: usuarioEncontrado.nombre,
+      usuario: usuarioEncontrado.usuario,
+      rol: usuarioEncontrado.rol,
+    },
+  });
+}
+
+function me(req, res) {
+  return res.json({
+    user: {
+      id: req.user.id,
+      nombre: req.user.nombre,
+      usuario: req.user.usuario,
+      rol: req.user.rol,
+    },
+  });
+}
+
+module.exports = {
+  login,
+  me,
 };
