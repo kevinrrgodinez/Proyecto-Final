@@ -13,6 +13,7 @@ import '../../screens/cliente/cliente_home_screen.dart';
 import '../../screens/cliente/cliente_catalogo_screen.dart';
 import '../../screens/cliente/cliente_compras_screen.dart';
 import '../../screens/cliente/perfil_screen.dart';
+import '../../screens/cliente/carrito_screen.dart';
 
 class AppRoutes {
   static const String login = '/login';
@@ -32,7 +33,7 @@ class AppRoutes {
   static const String clienteCatalogo = '/cliente/catalogo';
   static const String clienteCompras = '/cliente/compras';
   static const String clientePerfil = '/cliente/perfil';
-
+  static const String carrito = '/cliente/carrito';
   static Map<String, WidgetBuilder> get routes {
     return {
       login: (_) => const LoginScreen(),
@@ -45,7 +46,8 @@ class AppRoutes {
       pos: (_) => const PosScreen(),
       vendedorClientes: (_) => const ClientesScreen(),
       vendedorSales: (_) => const VendedorSalesScreen(),
-      clienteHome: (_) => const ClienteHomeScreen(),
+      clienteHome: (_) => const ClienteCatalogoScreen(),
+      carrito: (_) => const CarritoScreen(),
       clienteCatalogo: (_) => const ClienteCatalogoScreen(),
       clienteCompras: (_) => const ClienteComprasScreen(),
       clientePerfil: (_) => const PerfilScreen(),
