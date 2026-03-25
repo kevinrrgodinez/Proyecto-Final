@@ -1,107 +1,105 @@
 const bcrypt = require("bcryptjs");
-const usuarios = require("../data/usuarios.mock");
+const Usuario = require("../models/Usuario");
 
-// 🔹 Registrar usuario
-exports.crearUsuario = (req, res) => {
+function normalizarRol(rol) {
+  const valor = (rol || "").toString().trim().toUpperCase();
+
+  if (valor === "ADMIN" || valor === "ADMINISTRADOR") return "ADMIN";
+  if (valor === "VENDEDOR") return "VENDEDOR";
+  if (valor === "CLIENTE") return "CLIENTE";
+
+  return null;
+}
+
+exports.crearUsuario = async (req, res) => {
   try {
     const { nombre, correo, password, rol, telefono } = req.body;
 
-    // validar duplicado
-    const existe = usuarios.find(u => u.correo === correo);
+    if (!nombre || !correo || !password) {
+      return res.status(400).json({
+        msg: "nombre, correo y password son obligatorios"
+      });
+    }
+
+    const existe = await Usuario.findOne({
+      correo: correo.toLowerCase().trim()
+    });
+
     if (existe) {
       return res.status(400).json({ msg: "El correo ya existe" });
     }
 
-    const nuevoUsuario = {
-      id: usuarios.length + 1,
-      nombre,
-      correo,
+    const rolFinal = rol ? normalizarRol(rol) : "CLIENTE";
+
+    if (!rolFinal) {
+      return res.status(400).json({
+        msg: "Rol inválido. Debe ser ADMIN, VENDEDOR o CLIENTE"
+      });
+    }
+
+    const nuevoUsuario = new Usuario({
+      nombre: nombre.trim(),
+      correo: correo.toLowerCase().trim(),
       password: bcrypt.hashSync(password, 10),
-      rol,
+      rol: rolFinal,
       telefono: telefono || null,
-      activo: true,
-      fecha_creacion: new Date()
-    };
+      activo: true
+    });
 
-    usuarios.push(nuevoUsuario);
+    await nuevoUsuario.save();
 
-    res.status(201).json({ msg: "Usuario creado", usuario: nuevoUsuario });
-
+    res.status(201).json({
+      msg: "Usuario creado",
+      usuario: {
+        id: nuevoUsuario._id,
+        nombre: nuevoUsuario.nombre,
+        correo: nuevoUsuario.correo,
+        rol: nuevoUsuario.rol,
+        telefono: nuevoUsuario.telefono,
+        activo: nuevoUsuario.activo
+      }
+    });
   } catch (error) {
-    res.status(500).json({ msg: "Error al crear usuario" });
+    console.error("ERROR AL CREAR USUARIO:", error);
+    res.status(500).json({ msg: "Error al crear usuario", error: error.message });
   }
 };
 
-// 🔹 Modificar usuario
-exports.actualizarUsuario = (req, res) => {
-  try {
-    const { id } = req.params;
-    const usuario = usuarios.find(u => u.id == id);
-
-    if (!usuario) {
-      return res.status(404).json({ msg: "Usuario no encontrado" });
-    }
-
-    const { nombre, correo, rol, activo } = req.body;
-
-    if (nombre !== undefined) usuario.nombre = nombre;
-    if (correo !== undefined) usuario.correo = correo;
-    if (rol !== undefined) usuario.rol = rol;
-    if (activo !== undefined) usuario.activo = activo;
-
-    res.json({ msg: "Usuario actualizado", usuario });
-
-  } catch (error) {
-    res.status(500).json({ msg: "Error al actualizar" });
-  }
-};
-
-// 🔹 Eliminar usuario (soft delete)
-exports.eliminarUsuario = (req, res) => {
-  try {
-    const { id } = req.params;
-    const usuario = usuarios.find(u => u.id == id);
-
-    if (!usuario) {
-      return res.status(404).json({ msg: "Usuario no encontrado" });
-    }
-
-    usuario.activo = false;
-
-    res.json({ msg: "Usuario desactivado" });
-
-  } catch (error) {
-    res.status(500).json({ msg: "Error al eliminar" });
-  }
-};
-// 🔹 Listar usuarios
-exports.listarUsuarios = (req, res) => {
+exports.listarUsuarios = async (req, res) => {
   try {
     const { rol, activo } = req.query;
-
-    let resultado = [...usuarios];
+    let filtro = {};
 
     if (rol) {
-      resultado = resultado.filter(u => u.rol === rol);
+      const rolFinal = normalizarRol(rol);
+      if (rolFinal) filtro.rol = rolFinal;
     }
 
     if (activo !== undefined) {
-      const estado = activo === "true";
-      resultado = resultado.filter(u => u.activo === estado);
+      filtro.activo = activo === "true";
     }
 
-    res.json(resultado);
+    const usuarios = await Usuario.find(filtro).sort({ createdAt: -1 });
+
+    res.json(
+      usuarios.map((u) => ({
+        id: u._id,
+        nombre: u.nombre,
+        correo: u.correo,
+        telefono: u.telefono || "",
+        rol: u.rol,
+        activo: u.activo
+      }))
+    );
   } catch (error) {
-    res.status(500).json({ msg: "Error al listar usuarios" });
+    res.status(500).json({ msg: "Error al listar usuarios", error: error.message });
   }
 };
 
-// 🔹 Obtener usuario por ID
-exports.obtenerUsuario = (req, res) => {
+exports.obtenerUsuario = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const usuario = usuarios.find(u => u.id == id);
+    const usuario = await Usuario.findById(id);
 
     if (!usuario) {
       return res.status(404).json({ msg: "Usuario no encontrado" });
@@ -109,29 +107,87 @@ exports.obtenerUsuario = (req, res) => {
 
     res.json(usuario);
   } catch (error) {
-    res.status(500).json({ msg: "Error al obtener usuario" });
+    res.status(500).json({ msg: "Error al obtener usuario", error: error.message });
   }
 };
 
-// 🔹 Activar / desactivar usuario
-exports.cambiarEstadoUsuario = (req, res) => {
+exports.actualizarUsuario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, correo, rol, activo } = req.body;
+
+    const usuario = await Usuario.findById(id);
+
+    if (!usuario) {
+      return res.status(404).json({ msg: "Usuario no encontrado" });
+    }
+
+    if (nombre !== undefined) usuario.nombre = nombre.trim();
+    if (correo !== undefined) usuario.correo = correo.toLowerCase().trim();
+
+    if (rol !== undefined) {
+      const rolFinal = normalizarRol(rol);
+
+      if (!rolFinal) {
+        return res.status(400).json({
+          msg: "Rol inválido. Debe ser ADMIN, VENDEDOR o CLIENTE"
+        });
+      }
+
+      usuario.rol = rolFinal;
+    }
+
+    if (activo !== undefined) usuario.activo = activo;
+
+    await usuario.save();
+
+    res.json({
+      msg: "Usuario actualizado",
+      usuario
+    });
+  } catch (error) {
+    res.status(500).json({ msg: "Error al actualizar usuario", error: error.message });
+  }
+};
+
+exports.cambiarEstadoUsuario = async (req, res) => {
   try {
     const { id } = req.params;
     const { activo } = req.body;
 
-    const usuario = usuarios.find(u => u.id == id);
+    const usuario = await Usuario.findById(id);
 
     if (!usuario) {
       return res.status(404).json({ msg: "Usuario no encontrado" });
     }
 
     usuario.activo = activo;
+    await usuario.save();
 
     res.json({
       msg: "Estado actualizado",
       usuario
     });
   } catch (error) {
-    res.status(500).json({ msg: "Error al cambiar estado" });
+    res.status(500).json({ msg: "Error al cambiar estado", error: error.message });
+  }
+};
+
+exports.eliminarUsuario = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const usuario = await Usuario.findById(id);
+
+    if (!usuario) {
+      return res.status(404).json({ msg: "Usuario no encontrado" });
+    }
+
+    usuario.activo = false;
+    await usuario.save();
+
+    res.json({ msg: "Usuario desactivado" });
+  } catch (error) {
+    res.status(500).json({ msg: "Error al eliminar usuario", error: error.message });
   }
 };
