@@ -1,2 +1,4 @@
+<<<<<<< HEAD
 # Proyecto-Final
-Proyecto Final de Jazmin
+
+Proyecto final de Jazm�n.
