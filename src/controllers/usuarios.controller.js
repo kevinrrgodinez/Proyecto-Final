@@ -12,6 +12,9 @@ function normalizarRol(rol) {
 }
 
 exports.crearUsuario = async (req, res) => {
+  console.log("👉 ENTRANDO A CREAR USUARIO");
+  console.log("📥 BODY:", req.body);
+
   try {
     const { nombre, correo, password, rol, telefono } = req.body;
 
@@ -29,7 +32,11 @@ exports.crearUsuario = async (req, res) => {
       return res.status(400).json({ msg: "El correo ya existe" });
     }
 
+    console.log("🔍 ROL RECIBIDO:", rol);
+
     const rolFinal = rol ? normalizarRol(rol) : "CLIENTE";
+
+    console.log("✅ ROL NORMALIZADO:", rolFinal);
 
     if (!rolFinal) {
       return res.status(400).json({
@@ -46,6 +53,8 @@ exports.crearUsuario = async (req, res) => {
       activo: true
     });
 
+    console.log("💾 GUARDANDO USUARIO CON ROL:", nuevoUsuario.rol);
+
     await nuevoUsuario.save();
 
     res.status(201).json({
@@ -60,7 +69,7 @@ exports.crearUsuario = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("ERROR AL CREAR USUARIO:", error);
+    console.error("❌ ERROR AL CREAR USUARIO:", error);
     res.status(500).json({ msg: "Error al crear usuario", error: error.message });
   }
 };
@@ -68,9 +77,7 @@ exports.crearUsuario = async (req, res) => {
 exports.listarUsuarios = async (req, res) => {
   try {
     const { rol, activo } = req.query;
-
-    // 🔥 SOLO ACTIVOS POR DEFECTO
-    let filtro = { activo: true };
+    let filtro = {};
 
     if (rol) {
       const rolFinal = normalizarRol(rol);
@@ -98,25 +105,16 @@ exports.listarUsuarios = async (req, res) => {
   }
 };
 
-// 🔥 ESTA FUNCIÓN FALTABA
 exports.obtenerUsuario = async (req, res) => {
   try {
     const { id } = req.params;
-
     const usuario = await Usuario.findById(id);
 
     if (!usuario) {
       return res.status(404).json({ msg: "Usuario no encontrado" });
     }
 
-    res.json({
-      id: usuario._id,
-      nombre: usuario.nombre,
-      correo: usuario.correo,
-      telefono: usuario.telefono || "",
-      rol: usuario.rol,
-      activo: usuario.activo
-    });
+    res.json(usuario);
   } catch (error) {
     res.status(500).json({ msg: "Error al obtener usuario", error: error.message });
   }
@@ -134,20 +132,7 @@ exports.actualizarUsuario = async (req, res) => {
     }
 
     if (nombre !== undefined) usuario.nombre = nombre.trim();
-
-    // 🔥 VALIDACIÓN DE CORREO DUPLICADO
-    if (correo !== undefined) {
-      const existe = await Usuario.findOne({
-        correo: correo.toLowerCase().trim(),
-        _id: { $ne: id }
-      });
-
-      if (existe) {
-        return res.status(400).json({ msg: "El correo ya está en uso" });
-      }
-
-      usuario.correo = correo.toLowerCase().trim();
-    }
+    if (correo !== undefined) usuario.correo = correo.toLowerCase().trim();
 
     if (rol !== undefined) {
       const rolFinal = normalizarRol(rol);
@@ -165,17 +150,9 @@ exports.actualizarUsuario = async (req, res) => {
 
     await usuario.save();
 
-    // 🔥 NO DEVOLVER PASSWORD
     res.json({
       msg: "Usuario actualizado",
-      usuario: {
-        id: usuario._id,
-        nombre: usuario.nombre,
-        correo: usuario.correo,
-        rol: usuario.rol,
-        telefono: usuario.telefono,
-        activo: usuario.activo
-      }
+      usuario
     });
   } catch (error) {
     res.status(500).json({ msg: "Error al actualizar usuario", error: error.message });

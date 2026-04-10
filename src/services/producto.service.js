@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const API_PRODUCTOS = process.env.PRODUCTOS_API_URL || 'http://127.0.0.1:8000/productos';
+const API_PRODUCTOS = process.env.PRODUCTOS_API_URL || 'http://127.0.0.1:8010/productos';
 
 exports.obtenerProductos = async () => {
   const res = await axios.get(API_PRODUCTOS);

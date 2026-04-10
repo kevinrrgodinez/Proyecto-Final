@@ -7,4 +7,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
 router.post('/login', authController.login);
 router.get('/me', authMiddleware, authController.me);
 
+// 👉 AGREGA ESTA LÍNEA
+router.post('/register', authController.register);
+
 module.exports = router;
